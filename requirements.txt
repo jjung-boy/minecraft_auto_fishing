@@ -1,0 +1,7 @@
+mss>=9.0
+opencv-python>=4.8
+numpy>=1.24
+keyboard>=0.13.5
+pyautogui>=0.9.54
+# 클릭이 게임에 안 먹히면 아래 줄 주석을 풀고 config.json 의 click_backend 를 "pydirectinput" 으로
+# pydirectinput>=1.0.4

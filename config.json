@@ -1,0 +1,17 @@
+{
+  "match_threshold": 0.8,
+  "reaction_delay": [0.2, 0.6],
+  "recast_delay": [1.0, 2.0],
+  "bite_timeout": 30,
+  "cast_grace": 3.5,
+  "scan_interval": 0.05,
+  "log_interval": 1.0,
+  "click_backend": "pyautogui",
+  "click_hold": [0.04, 0.09],
+  "toggle_key": "f8",
+  "capture_key": "f9",
+  "quit_key": "f10",
+  "monitor_index": 1,
+  "binarize": false,
+  "binarize_level": 180
+}
