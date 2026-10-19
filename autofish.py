@@ -62,6 +62,7 @@ DEFAULT_CONFIG = {
     "toggle_key": "f8",
     "capture_key": "f9",
     "quit_key": "f10",
+    "snapshot_key": "f7",
     "monitor_index": 1,
     "binarize": False,
     "binarize_level": 180,
@@ -221,6 +222,16 @@ class AutoFisher:
         self.right_click = make_right_click(cfg["click_backend"], cfg["click_hold"])
         self.running = threading.Event()
         self.quit = threading.Event()
+        self.snapshot = threading.Event()
+
+    def save_snapshot(self, frame, score):
+        """F7: 지금 캡처한 자막 영역을 파일로 남기고 점수를 찍는다 (안 낚일 때 원인 확인용)."""
+        self.snapshot.clear()
+        path = BASE_DIR / time.strftime("debug_%Y%m%d_%H%M%S.png")
+        ok, buf = cv2.imencode(".png", frame)
+        if ok:
+            buf.tofile(str(path))
+        log.info("스냅샷 저장: %s — 점수 %.3f (임계값 %.2f)", path.name, score, self.cfg["match_threshold"])
 
     # 핫키 콜백 (keyboard 스레드에서 호출됨)
     def toggle(self):
@@ -264,9 +275,10 @@ class AutoFisher:
         cfg = self.cfg
         keyboard.add_hotkey(cfg["toggle_key"], self.toggle)
         keyboard.add_hotkey(cfg["quit_key"], self.stop_all)
+        keyboard.add_hotkey(cfg["snapshot_key"], self.snapshot.set)
         log.info(
-            "준비 완료. 마인크래프트에서 낚싯대를 들고 %s 로 시작/정지, %s 로 종료.",
-            cfg["toggle_key"].upper(), cfg["quit_key"].upper(),
+            "준비 완료. 마인크래프트에서 낚싯대를 들고 %s 로 시작/정지, %s 로 종료, %s 로 현재 화면 점수 저장.",
+            cfg["toggle_key"].upper(), cfg["quit_key"].upper(), cfg["snapshot_key"].upper(),
         )
         log.info(
             "임계값=%.2f, 반응지연=%s, 재투척지연=%s, 타임아웃=%ss, 클릭=%s",
@@ -277,6 +289,9 @@ class AutoFisher:
         with new_mss() as sct:  # mss 는 스레드마다 따로 만들어야 하므로 여기서 생성
             while not self.quit.is_set():
                 if not self.running.wait(0.1):
+                    if self.snapshot.is_set():  # 정지 중에도 F7 은 동작
+                        frame = grab_bgr(sct, self.region)
+                        self.save_snapshot(frame, match_score(preprocess(frame, cfg), self.tmpl))
                     continue
                 self._session(sct)
 
@@ -291,10 +306,15 @@ class AutoFisher:
         peak = 0.0
         catches = 0
 
+        grace_warned = near_warned = False
+
         while self.running.is_set() and not self.quit.is_set():
             now = time.monotonic()
-            score = match_score(preprocess(grab_bgr(sct, self.region), cfg), self.tmpl)
+            frame = grab_bgr(sct, self.region)
+            score = match_score(preprocess(frame, cfg), self.tmpl)
             peak = max(peak, score)
+            if self.snapshot.is_set():
+                self.save_snapshot(frame, score)
 
             if now - last_log >= cfg["log_interval"]:
                 log.info("매칭 점수 최대 %.3f (대기 %.1fs)", peak, now - last_cast)
@@ -303,6 +323,15 @@ class AutoFisher:
 
             # 재투척 직후에는 이전 입질 자막이 아직 남아 있으므로 무시
             in_grace = now - last_cast < cfg["cast_grace"]
+
+            if score >= cfg["match_threshold"] and in_grace and not grace_warned:
+                log.info("투척 직후 %.1fs 라 감지 무시 (점수 %.3f, cast_grace=%ss)",
+                         now - last_cast, score, cfg["cast_grace"])
+                grace_warned = True
+            elif cfg["match_threshold"] - 0.2 <= score < cfg["match_threshold"] and not near_warned:
+                log.info("임계값 근처 점수 %.3f (임계값 %.2f) — 입질인데 안 낚였다면 임계값을 낮추세요",
+                         score, cfg["match_threshold"])
+                near_warned = True
 
             if score >= cfg["match_threshold"] and not in_grace:
                 delay = random.uniform(*cfg["reaction_delay"])
@@ -315,6 +344,7 @@ class AutoFisher:
                 log.info("누적 %d회", catches)
                 last_cast = last_log = time.monotonic()
                 peak = 0.0
+                grace_warned = near_warned = False
                 continue
 
             if now - last_cast >= cfg["bite_timeout"]:
@@ -323,6 +353,7 @@ class AutoFisher:
                     break
                 last_cast = last_log = time.monotonic()
                 peak = 0.0
+                grace_warned = near_warned = False
                 continue
 
             if not self.sleep(cfg["scan_interval"]):

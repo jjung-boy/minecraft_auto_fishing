@@ -11,6 +11,7 @@
   "toggle_key": "f8",
   "capture_key": "f9",
   "quit_key": "f10",
+  "snapshot_key": "f7",
   "monitor_index": 1,
   "binarize": false,
   "binarize_level": 180
