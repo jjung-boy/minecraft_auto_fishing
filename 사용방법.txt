@@ -8,7 +8,7 @@
 ----------------------
 1. Python 설치: https://www.python.org/downloads/
    - 설치 첫 화면 아래 "Add python.exe to PATH" 를 꼭 체크!
-2. 이 폴더의 "설치.bat" 더블클릭 → "설치 완료!" 가 나오면 끝
+2. 이 폴더의 "설치.bat" 더블클릭 → 검은 창에 "Done!" 이 나오면 끝
 
 
 [2] 마인크래프트 준비
@@ -63,5 +63,8 @@
 - F8 이 안 먹힘
   → 실행.bat 을 우클릭 → 관리자 권한으로 실행
 
-- "Python 이 없습니다" / "python 은 내부 또는 외부 명령이 아닙니다"
+- "[ERROR] Python not found" 가 뜸
   → Python 을 다시 설치하면서 "Add python.exe to PATH" 체크
+
+- "[ERROR] Required packages are not installed" 가 뜸
+  → 설치.bat 을 먼저 더블클릭해서 "Done!" 이 나올 때까지 기다리기
